@@ -1,0 +1,14 @@
+# General
+.DS_Store
+.idea
+.ipynb_checkpoints
+**/.ipynb_checkpoints/*
+**__pycache__
+
+#ignore data folder and figures
+data/
+**/figures
+
+# ignore wandb folder
+wandb/
+notebooks/generated_notebooks

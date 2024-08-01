@@ -1,0 +1,16 @@
+program: scripts/train_snn.py
+method: bayes
+metric:
+  goal: maximize
+  name: mean_conf_diagonal
+parameters:
+  split_rep:
+    value: True
+  tau_mem:
+    distribution: uniform
+    min: 30e-3
+    max: 60e-3
+  tau_syn:
+    distribution: uniform
+    min: 5e-3
+    max: 15e-3
