@@ -3,3 +3,4 @@ from .detect_bad_channels import *
 from .fourier import *
 from .filter_data import *
 from .segment import *
+from .class_labels import *

@@ -45,7 +45,7 @@ class ENGDataset:
     nerves_ch_group: dict = field(default_factory=get_nerve_ch_group ) # Keys are nerve and electrode number, values are list of channels on this electrode
 
     # Task information
-    task_order: list[str] = field(default_factory=lambda: ['Tridigit.', 'ThOpp.', 'Power', 'UlnarFing.', 'FingAbd.'])
+    task_order: list[str] = field(default_factory=lambda: ['Tripod', 'ThOpp.', 'Power', 'UlnarFing.', 'FingAbd.'])
     max_rep_dur = 1 # in seconds
     flex_dur = 1   # in seconds
     ext_dur = 1    # in seconds
