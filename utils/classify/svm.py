@@ -1,5 +1,5 @@
 from srcs.engdataset import ENGDataset
-from utils.preprocessing.extract_feat import extract_feature_for_task_rep
+from utils.preprocessing.extract_feat import extract_feature_for_task_rep_per_phase
 from utils.plot.model_perf import *
 from utils.evaluate_model import get_perf_results, compute_metric
 from constants import *
@@ -17,7 +17,8 @@ import dataframe_image as dfi
 
 
 # Prepare dataset for training
-def prepare_input_df(eng_dataset: ENGDataset, feature: str, organize_strat: str,  wind_size: float, overlap_perc: float):
+def prepare_input_df(eng_dataset: ENGDataset, feature: str, organize_strat: str,  wind_size: float, 
+                     overlap_perc: float, over_entire_rep:bool=False):
     # TODO: add the non-temporal version where the feature is computed across the whole duration of each repetition
     """
     organize_strat (str): defines the classes we would like to discriminate. Can be 'flx_vs_ext_combined' or 'flx_vs_ext_separate' or 'flx_vs_ext_vs_rest'. 
@@ -31,12 +32,13 @@ def prepare_input_df(eng_dataset: ENGDataset, feature: str, organize_strat: str,
     num_phases = 2     # flexion and extension or Close and Open
     for task_id in range(num_tasks):
         for rep_id in range(eng_dataset.task_rep_count[task_id]):
-            flex_feat_df, ext_feat_df, rest_feat_df = extract_feature_for_task_rep(eng_dataset,
+            flex_feat_df, ext_feat_df, rest_feat_df = extract_feature_for_task_rep_per_phase(eng_dataset,
                                                                                    task_id,
                                                                                    rep_id,
                                                                                    feature,
                                                                                    wind_size,
-                                                                                   overlap_perc=overlap_perc)
+                                                                                   overlap_perc=overlap_perc,
+                                                                                   over_entire_rep=over_entire_rep)
 
             # add labels column
             if organize_strat == 'flx_vs_ext_combined':

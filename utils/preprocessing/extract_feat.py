@@ -1,6 +1,7 @@
 
-from utils.preprocess_analog import get_single_rep_for_task, split_rep_to_flex_ext, extract_rest_for_rep
+# from utils.preprocess_analog import get_single_rep_for_task, split_rep_to_flex_ext, extract_rest_for_rep
 from srcs.engdataset import ENGDataset
+from utils.preprocessing.segment import *
 from constants import *
 
 import logging
@@ -45,9 +46,12 @@ def compute_overlap_wstime(wind_size: float, overlap_perc: float, duration: floa
     return start_ar
 
 
-def extract_feature_for_task_rep(eng_dataset:ENGDataset, task_id:int, rep_id:int, feature:str, 
-                                 wind_size:float, overlap_perc:float, return_win_stime:bool=False):
-    #TODO: add a case where we are not extracting over windows but over the whole rep
+
+
+
+def extract_feature_for_task_rep_per_phase(eng_dataset:ENGDataset, task_id:int, rep_id:int, feature:str, 
+                                 wind_size:float, overlap_perc:float, return_win_stime:bool=False,
+                                 over_entire_rep=False):
     """
     Extracts features from the given task and rep. Splits the rep into flexion, extension and rest phases first
     Returns the feature dataframe for each phase of shape (n_windows, n_channels + [Time, feat_win, rep_id] )
@@ -60,16 +64,18 @@ def extract_feature_for_task_rep(eng_dataset:ENGDataset, task_id:int, rep_id:int
         logging.debug(f"task_id: {task_id}  rep {rep_id}:  flx:{rep_df_flx[TIME_VAR].iloc[-1] - rep_df_flx[TIME_VAR].iloc[0]}\next:{rep_df_ext[TIME_VAR].iloc[-1] - rep_df_ext[TIME_VAR].iloc[0]}")
     except:
         print("Error in extracting rep duration")
-   
-    flx_feat_df = extract_feature_for_rep(rep_df_flx, rep_id, feature, wind_size, overlap_perc, eng_dataset.fs, return_win_stime)
-    ext_feat_df = extract_feature_for_rep(rep_df_ext, rep_id, feature, wind_size, overlap_perc, eng_dataset.fs, return_win_stime)
-    rest_feat_df = extract_feature_for_rep(rep_df_rest, rep_id, feature, wind_size, overlap_perc, eng_dataset.fs, return_win_stime)
+    if wind_size==1:
+        print("break")
+    flx_feat_df = extract_feature_for_rep(rep_df_flx, rep_id, feature, wind_size, overlap_perc, eng_dataset.fs, return_win_stime, over_entire_rep=over_entire_rep)
+    ext_feat_df = extract_feature_for_rep(rep_df_ext, rep_id, feature, wind_size, overlap_perc, eng_dataset.fs, return_win_stime, over_entire_rep=over_entire_rep)
+    rest_feat_df = extract_feature_for_rep(rep_df_rest, rep_id, feature, wind_size, overlap_perc, eng_dataset.fs, return_win_stime, over_entire_rep=over_entire_rep)
 
     return flx_feat_df, ext_feat_df, rest_feat_df
 
 
 def extract_feature_for_rep(rep_df: pd.DataFrame, rep_id:int, feature: str, wind_size: float, overlap_perc:float, 
-                            eng_famp:int, return_win_stime:bool=False, clip_feature:bool=False):
+                            eng_famp:int, return_win_stime:bool=False, clip_feature:bool=False, 
+                            over_entire_rep=False):
     """
     Extracts features from the data using a sliding window approach.
     win_size: window size in seconds
@@ -89,72 +95,35 @@ def extract_feature_for_rep(rep_df: pd.DataFrame, rep_id:int, feature: str, wind
     logging.debug(f"Single trial: {n_samples} samples, {n_ch} channels")
     duration = n_samples/eng_famp # in seconds
 
-    # compute the start time of each window
-    start_ar = compute_overlap_wstime(wind_size, overlap_perc, duration)
-    logging.debug(f"Extracting features from {len(start_ar)} windows")
-    feat_df_ar = pd.DataFrame() # columns: time, all channels, window_number
-    for win, win_stime in enumerate(start_ar):
-        # compute the start and end index of the window
-        win_sidx = int(win_stime* eng_famp)
-        win_eidx = int(win_sidx + wind_size* eng_famp)
-        # extract the window
-        win_df = rep_df.iloc[win_sidx:win_eidx, :]
-        # compute the features
-        feat_df = feat_funct[feature](win_df).T
-        # add the time and window number
-        feat_df[TIME_VAR] = win_stime
-        feat_df[FEAT_WIN_COL] = win
-        feat_df[REP_ID_COL] = rep_id
-        feat_df_ar = pd.concat([feat_df_ar, feat_df], axis=0, ignore_index=True)
-
-    # TODO: clip feature
-    # if clip_feature:
-    #     feat_df_ar = clip_feature_to_mean(feat_df_ar, config)
-    if return_win_stime:
-        return feat_df_ar, start_ar
-    else:
+    if over_entire_rep:
+        feat_df_ar = feat_funct[feature](rep_df).T
+        feat_df_ar[REP_ID_COL] = rep_id
+        feat_df_ar[TIME_VAR] = 0
+        feat_df_ar[FEAT_WIN_COL] = 0
         return feat_df_ar
 
+    else:
+        # compute the start time of each window
+        start_ar = compute_overlap_wstime(wind_size, overlap_perc, duration)
+        logging.debug(f"Extracting features from {len(start_ar)} windows")
+        feat_df_ar = pd.DataFrame() # columns: time, all channels, window_number, rep_id
+        for win, win_stime in enumerate(start_ar):
+            # compute the start and end index of the window
+            win_sidx = int(win_stime* eng_famp)
+            win_eidx = int(win_sidx + wind_size* eng_famp)
+            # extract the window
+            win_df = rep_df.iloc[win_sidx:win_eidx, :]
+            # compute the features
+            feat_df = feat_funct[feature](win_df).T
+            # add the time and window number
+            feat_df[TIME_VAR] = win_stime
+            feat_df[FEAT_WIN_COL] = win
+            feat_df[REP_ID_COL] = rep_id
+            feat_df_ar = pd.concat([feat_df_ar, feat_df], axis=0, ignore_index=True)
+
+        if return_win_stime:
+            return feat_df_ar, start_ar
+        else:
+            return feat_df_ar
 
 
-
-
-# def get_stat_moving_wind_for_rep_id(eng_dataset, rep_id, task_id, wind_duration, stride_in_sec, min_periods=0, feat='pow', combine_flx_ext=False):
-#     """
-#     Compute a statistic over a moving window of size wind_size
-#     """
-#     #CHECKTHIS: check on the implementation fo moving average    
-#     # get start and end of the rep
-#     rep_df,rep_st, rep_et = get_single_rep_for_task(eng_dataset, rep_id, task_id)
-#     rep_df_flx, rep_df_ext = split_rep_to_flex_ext(rep_df, rep_st, rep_et, eng_dataset)
-#     _,_ ,rep_df_rest = extract_rest_for_rep(eng_dataset, task_id, rep_id)
-
-#     print(f"task_id: {task_id}  rep {rep_id}:  flx:{rep_df_flx[TIME_VAR].iloc[-1] - rep_df_flx[TIME_VAR].iloc[0]}\next:{rep_df_ext[TIME_VAR].iloc[-1] - rep_df_ext[TIME_VAR].iloc[0]}")
-#     # convert stride in sec to stride in samples
-#     stride = int(stride_in_sec * ENG_FS)
-#     wind_size = int(wind_duration * ENG_FS)
-#     min_periods = int(min_periods * ENG_FS)
-
-#     if combine_flx_ext:
-#         # flx_ext_df columns 56 + 1 time var
-#         flx_ext_df = pd.concat([rep_df_flx, rep_df_ext], axis=0, ignore_index=True, sort=False)
-
-#         print(f"stride: {stride}  wind_size: {wind_size} n_windows: {(flx_ext_df.shape[0] - wind_size) // stride +1}")
-#         n_wind = (flx_ext_df.shape[0] - wind_size) // stride +1
-#         flx_ext_wind_avg_df = get_avg_moving_window(flx_ext_df, wind_size, stride, min_periods, feat)
-#         assert flx_ext_wind_avg_df.shape[0] == n_wind, "check n_wind"
-#         return flx_ext_wind_avg_df
-
-
-#     else:
-#         # flx_df columns 56 + 1 time var
-#         flx_wind_avg_df = get_avg_moving_window(rep_df_flx, wind_size, stride, min_periods, feat)
-#         ext_wind_avg_df = get_avg_moving_window(rep_df_ext, wind_size, stride, min_periods, feat)
-#         rest_wind_avg_df = get_avg_moving_window(rep_df_rest, wind_size, stride, min_periods, feat)
-
-#         # check on n_wind
-#         for df, df_avg in zip([rep_df_flx, rep_df_ext, rep_df_rest],[flx_wind_avg_df,ext_wind_avg_df,rest_wind_avg_df]):
-#             n_wind = (df.shape[0] - wind_size) // stride + 1
-#             # assert df_avg.shape[0] == n_wind, f"check n_wind: {n_wind} vs. {df_avg.shape[0] }"
-  
-#         return flx_wind_avg_df, ext_wind_avg_df, rest_wind_avg_df

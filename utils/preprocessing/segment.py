@@ -79,3 +79,17 @@ def get_single_rep_for_task(eng_dataset:ENGDataset, rep_id:int, task_id:int):
 
     return rep_df, rep_start, rep_end
 
+
+
+def split_rep_to_flex_ext(rep_df:pd.DataFrame, rep_st:float, rep_et:float, eng_dataset:ENGDataset):
+    """
+    Splits a single rep into its flexion and extension segments. 
+    Extension segment is right after the flexion segment. Each rep ends with 3 sec of rest, the ext seg is right preceding that.
+    """
+    # note that condition  (rep_df[TIME_VAR] >= rep_st) is for completeness. The rep_df always starts at rep_st
+    rep_df_flex = rep_df[(rep_df[TIME_VAR] >= rep_st) &(rep_df[TIME_VAR] < rep_st + eng_dataset.flex_dur)]
+    # rep_df_ext = rep_df[(rep_df[TIME_VAR] >= rep_st + eng_dataset.flex_dur) & (rep_df[TIME_VAR] < rep_et - eng_dataset.rest_dur)]
+    rep_df_ext = rep_df[(rep_df[TIME_VAR] >= rep_st + eng_dataset.flex_dur) & (rep_df[TIME_VAR] < rep_st + eng_dataset.flex_dur + eng_dataset.ext_dur)]
+
+    return rep_df_flex, rep_df_ext
+
