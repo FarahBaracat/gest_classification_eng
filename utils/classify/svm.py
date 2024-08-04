@@ -95,7 +95,8 @@ def fit_svm(input_df, labels_map: Dict[int, str], select_class: List[int],
             eng_dataset:ENGDataset,
              bad_channels:List[int] =[],
               k_cv=3, save_fig=True, annotate_cm=False, shuffle=True, is_temporal=False, 
-              seed=None, return_conf_test=False,bin_width=None, bin_stat=None, exp_var=None):
+              seed=None, return_conf_test=False,bin_width=None, bin_stat=None, exp_var=None,
+              kernel='linear'):
     """
     feat_df: dataframe with the features and all the labels
     labels_map: dict with the labels and the corresponding gesture names. Key: label, value: gesture name
@@ -189,7 +190,7 @@ def fit_svm(input_df, labels_map: Dict[int, str], select_class: List[int],
 
      
         # define model
-        clf = OneVsRestClassifier(SVC(kernel='linear', probability=True))
+        clf = OneVsRestClassifier(SVC(kernel=kernel, probability=True))
 
         # fit model
         clf.fit(X_train, y_train)
