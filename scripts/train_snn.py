@@ -5,7 +5,7 @@ import utils.evaluate_model as meval #forward_test_data, log_mean_conf_matrix, c
 from utils.preprocess_spikes import dense_to_sparse, split_rep_tensor_into_bins
 from utils.load_files import load_encoded_data
 from utils.plotting import log_weights, plot_vmem
-from utils.plot import plot_mean_acc_per_class, plot_mean_prec_rec_per_class, plot_acc_weighted_prec_recall, plot_confusion_matrix, log_mean_conf_matrix
+from utils.plot import plot_mean_acc_per_class, plot_mean_prec_rec_per_class, plot_acc_weighted_prec_recall, plot_confusion_matrix, log_mean_conf_matrix, plot_learnt_wdist
 # import utils.plotting as uplot #log_weights, plot_vmem, plot_mean_acc_per_class, plot_mean_prec_rec_per_class, plot_acc_weighted_prec_recall
 from constants import COLOR_DICT, MAX_REP_DUR, CLASS_TO_GEST
 
@@ -23,6 +23,8 @@ import matplotlib
 import logging
 from brian2 import *
 import random
+import os
+from constants import *
 
 plt.rcParams.update({"figure.dpi": 150})
 plt.rcParams['axes.axisbelow'] = True
@@ -48,16 +50,16 @@ def train():
     dtype = torch.float
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
-    params_defaults = dict(n_epochs=150,
+    params_defaults = dict(n_epochs=1, # default 150
                        batch_size=16,  # default 16
-                       tau_mem=51e-3,  # 50e-3,
-                       tau_syn=12e-3,  # 30e-3,
+                       tau_mem=52e-3,  # 50e-3,
+                       tau_syn=13e-3,  # 30e-3,
                        learn_tausyn  = False,
                         learn_taumem = False,
                        lif_type='synaptic',
                        dt=0.01,
                        k_cv=5, 
-                       seed=1,
+                       seed=10,
                        lr_rate=0.01,
                        correct_rate=97,  # 150 Hz for 200 ms/ 98 Hz for 150 ms/ 97 Hz for 100 ms
                        incorrect_rate=0,
@@ -84,6 +86,12 @@ def train():
     torch.cuda.manual_seed(wandb.config.seed)
     np.random.seed(wandb.config.seed)
     random.seed(wandb.config.seed)
+
+    # create figures directory if it does not exist
+    # FIG_LDA_DIR = os.path.join('figures', f'day{eng_dataset.day}{eng_dataset.session}', 'LDA' )
+
+    if not os.path.exists(SNN_FIG):
+        os.makedirs(SNN_FIG)
 
     # load encoded data defined by neuron parameters
     Gest = namedtuple('gesture', ['id', 'phase'])
@@ -284,6 +292,7 @@ def train():
 
     # read the weights after training
     w_trained = net.fc1.weight.detach().clone()
+    plot_learnt_wdist(eng_dataset.day, w_trained.numpy(), w_init.numpy(), save_fig=True)
     log_weights(w_trained, is_trained=True)
 
     wandb.log({f"Classification Report": wandb.Table(dataframe=report_df)})
