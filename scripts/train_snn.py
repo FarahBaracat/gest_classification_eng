@@ -5,7 +5,7 @@ import utils.evaluate_model as meval #forward_test_data, log_mean_conf_matrix, c
 from utils.preprocess_spikes import dense_to_sparse, split_rep_tensor_into_bins
 from utils.load_files import load_encoded_data
 from utils.plotting import log_weights, plot_vmem
-from utils.plot import plot_mean_acc_per_class, plot_mean_prec_rec_per_class, plot_acc_weighted_prec_recall, plot_confusion_matrix, log_mean_conf_matrix, plot_learnt_wdist
+from utils.plot import plot_mean_acc_per_class, plot_mean_prec_rec_per_class, plot_acc_weighted_prec_recall, plot_confusion_matrix, log_mean_conf_matrix, plot_learnt_wdist, plot_learnt_threshold
 # import utils.plotting as uplot #log_weights, plot_vmem, plot_mean_acc_per_class, plot_mean_prec_rec_per_class, plot_acc_weighted_prec_recall
 from constants import COLOR_DICT, MAX_REP_DUR, CLASS_TO_GEST
 
@@ -42,6 +42,10 @@ LOG_EVERY_N_EP = 10  # plot c1onfusion matrix every n epochs
 def train():
     rec_day = 16
     session = '01'
+    save_snn_figs = True
+
+    if not os.path.exists(SNN_FIG):
+        os.makedirs(SNN_FIG)
 
     eng_dataset = ENGDataset(day= rec_day, session=session, load_raw_data = False, save_figs=False)
     bad_channels = []  #currently identified based on mean and std: [1,2,5,7,43]   in previous implmentation: [1,2,43]
@@ -52,8 +56,8 @@ def train():
 
     params_defaults = dict(n_epochs=1, # default 150
                        batch_size=16,  # default 16
-                       tau_mem=52e-3,  # 50e-3,
-                       tau_syn=13e-3,  # 30e-3,
+                       tau_mem=54e-3,  # 50e-3,
+                       tau_syn=10e-3,  # 30e-3,
                        learn_tausyn  = False,
                         learn_taumem = False,
                        lif_type='synaptic',
@@ -68,8 +72,8 @@ def train():
                        enc_vth=0.02, # default 0.05
                        enc_tau_mem=0.03, #default 0.020,  
 
-                       w_init_mean=0.1, # default 0.6,
-                       w_init_std=0.01,
+                       w_init_mean=0.3, # default 0.6,
+                       w_init_std=0.1,
                        w_init_a=-0.1,
                        w_init_b=0.1,
                        w_init_dist='normal',#'normal',
@@ -87,12 +91,7 @@ def train():
     np.random.seed(wandb.config.seed)
     random.seed(wandb.config.seed)
 
-    # create figures directory if it does not exist
-    # FIG_LDA_DIR = os.path.join('figures', f'day{eng_dataset.day}{eng_dataset.session}', 'LDA' )
-
-    if not os.path.exists(SNN_FIG):
-        os.makedirs(SNN_FIG)
-
+    
     # load encoded data defined by neuron parameters
     Gest = namedtuple('gesture', ['id', 'phase'])
     sel_gest = [Gest(0, 'ext'), Gest(1, 'flx'), Gest(3, 'flx'), Gest(4, 'flx')]
@@ -112,10 +111,6 @@ def train():
     input, labels_before, num_steps = dense_to_sparse(spikes, sel_gest, num_steps,
                                                       num_inputs, MAX_REP_DUR, wandb.config['dt'], device, dtype)
 
-    # remove bad channels and their respective input neurons from the input tensor
-    #TODO: update num_inputs
-    input = input[:, :, [i for i in range(num_inputs) if i not in bad_channels]]
-    num_inputs = input.size(-1)
 
     logging.info(f"Discritized time: {wandb.config['dt']}, Number of steps: {num_steps}")
     print(f"\n Scaled correct rate:{wandb.config['correct_rate']/num_steps}")
@@ -131,6 +126,7 @@ def train():
         input, labels, num_steps, n_split_bins = split_rep_tensor_into_bins(
             input, labels_before, num_steps, bin_width=wandb.config['bin_width'])
     print(f"\n\nInput size after splitting into bins: {input.size()}\n")
+    
     # plotting the spikes per label
     # plot_mean_firing_rate_temporal(input, labels)
     dataset = EMGCustomDataset(input, labels)  # full dataset with the time bins
@@ -175,6 +171,7 @@ def train():
 
         # read the weights before training
         w_init = net.fc1.weight.detach().clone()
+        vth_init = net.lif1.threshold.detach().clone().numpy()
         log_weights(w_init, is_trained=False)
 
         for epoch in range(wandb.config['n_epochs']):
@@ -266,17 +263,14 @@ def train():
 
     # average the confusion matrix over all folds: returns array (n_epochs, n_classes, n_classes)
     mean_conf_matrix, std_conf_matrix = compute_mean_std_for_array(conf_matrix_fold, axis=1)
-    log_mean_conf_matrix(mean_conf_matrix)
+    log_mean_conf_matrix(mean_conf_matrix, save_fig=save_snn_figs)
 
     # barplot correct predictions per class + sd for the last epoch
-    # wandb.log({f'mean pred per class': mean_conf_matrix[-1,:,:]})
-    # wandb.log({f'std pred per class': std_conf_matrix[-1,:,:]})
     print(f"mean pred per class {mean_conf_matrix[-1,:,:]}")
     print(f"std pred per class {std_conf_matrix[-1,:,:]}")
     print("\n ----------------")
     wandb.log({'mean_conf_diagonal': np.mean(np.diag(mean_conf_matrix[-1,:,:]))})
     plot_mean_acc_per_class(num_outputs, mean_conf_matrix[-1, :, :], std_conf_matrix[-1, :, :])
-# def plot_mean_acc_per_class(num_outputs, mean_conf_matrix_val, std_conf_matrix_val, mean_conf_matrix_train, std_conf_matrix_train, class_to_gest=CLASS_TO_GEST, wandb_log=True):
 
     # barplot precision and recall per class + sd for the last epoch: todo pass the last epoch only
     # take the mean over k-folds
@@ -290,10 +284,13 @@ def train():
     fig = plot_acc_weighted_prec_recall(results_df, plot_train=False)
     wandb.log({f"weighted precision and recall": wandb.Image(fig)})
 
-    # read the weights after training
+    # read the weights and vth after training
     w_trained = net.fc1.weight.detach().clone()
-    plot_learnt_wdist(eng_dataset.day, w_trained.numpy(), w_init.numpy(), save_fig=True)
+    plot_learnt_wdist(eng_dataset.day, w_trained.numpy(), w_init.numpy(), save_fig=save_snn_figs)
     log_weights(w_trained, is_trained=True)
+
+    vth_trained = net.lif1.threshold.detach().clone().numpy()
+    plot_learnt_threshold(eng_dataset.day, vth_trained, vth_init, save_fig=save_snn_figs)
 
     wandb.log({f"Classification Report": wandb.Table(dataframe=report_df)})
 

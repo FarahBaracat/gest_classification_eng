@@ -129,9 +129,13 @@ def plot_acc_weighted_prec_recall(results_df, plot_train=True):
     return fig
 
 
-def log_mean_conf_matrix(mean_conf_matrix):
+def log_mean_conf_matrix(mean_conf_matrix, save_fig=False):
     for e in range(mean_conf_matrix.shape[0]):
-        conf_fig = plot_confusion_matrix(None, None, CLASS_TO_GEST, title=f'Epoch {e}', matrix=mean_conf_matrix[e,:,:], return_fig=True)
+        conf_fig = plot_confusion_matrix(None, None, CLASS_TO_GEST, title=f'Epoch {e}', matrix=mean_conf_matrix[e,:,:], return_fig=True,
+                                         cmap='PuBuGn')
+        if save_fig:
+            conf_fig_file = f"ep_{wandb.config['n_epochs']}_average_conf_matrix_{wandb.config['tau_mem']}_tausyn_{wandb.config['tau_syn']}.png"
+            conf_fig.savefig(os.path.join(SNN_FIG, conf_fig_file), dpi=300, bbox_inches='tight')
         wandb.log({f"avg_conf_matrix": wandb.Image(conf_fig.get_figure())})
 
 
@@ -139,12 +143,12 @@ def log_mean_conf_matrix(mean_conf_matrix):
 
 def plot_confusion_matrix(actual_classes: np.array, predicted_classes: np.array, class_to_gesture: dict,
                           title="", matrix=None, annotate=False, save_fig =False, 
-                          filename_prefix="", filename_suffix="", return_fig = False):
+                          filename_prefix="", filename_suffix="", return_fig = False, cmap='flare'):
     if matrix is None:
         matrix = confusion_matrix(actual_classes, predicted_classes, normalize="true")
     df_cm = pd.DataFrame(matrix, list(class_to_gesture.values()), list(class_to_gesture.values()))
     fig, ax = plt.subplots(figsize=(8, 4))
-    sns_plot = sns.heatmap(df_cm, cmap="flare", annot=True, annot_kws={"size": 8}, fmt=".2f", ax=ax, 
+    sns_plot = sns.heatmap(df_cm, cmap=cmap, annot=True, annot_kws={"size": 8}, fmt=".2f", ax=ax, 
                            vmin=0, vmax=1, cbar_kws={'label': 'Normalized Predictions Ratio','pad': 0.01})
 
 
