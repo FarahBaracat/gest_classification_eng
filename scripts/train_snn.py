@@ -54,7 +54,7 @@ def train():
     dtype = torch.float
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
-    params_defaults = dict(n_epochs=1, # default 150
+    params_defaults = dict(n_epochs=150, # default 150
                        batch_size=16,  # default 16
                        tau_mem=54e-3,  # 50e-3,
                        tau_syn=10e-3,  # 30e-3,
@@ -73,7 +73,7 @@ def train():
                        enc_tau_mem=0.03, #default 0.020,  
 
                        w_init_mean=0.3, # default 0.6,
-                       w_init_std=0.1,
+                       w_init_std=0.1,   # not used at the moment, set to 0.1 of the mean
                        w_init_a=-0.1,
                        w_init_b=0.1,
                        w_init_dist='normal',#'normal',

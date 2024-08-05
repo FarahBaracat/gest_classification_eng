@@ -19,7 +19,7 @@ def plot_learnt_wdist(day:int, w_learnt:np.ndarray, w_init:np.ndarray, save_fig=
 
     fig = plt.figure(figsize=(5,3))
     ax = fig.add_subplot(111)
-    ax.hist(w_learnt.flatten(), bins=100, alpha=trained_alpha, label='Trained', 
+    w_hist = ax.hist(w_learnt.flatten(), bins=100, alpha=trained_alpha, label='Trained', 
             color=COLOR_DICT['dark_cyan'])
     if w_init is not None:
         ax.hist(w_init.flatten(), bins=100, alpha=init_alpha, label='Initial', 
@@ -31,6 +31,8 @@ def plot_learnt_wdist(day:int, w_learnt:np.ndarray, w_init:np.ndarray, save_fig=
     # fig.legend(loc='upper left', ncol=1, frameon=False)
     plt.legend(frameon=False)
     fig.tight_layout()
+
+    wandb.log({f"trained_init_w": wandb.Image(w_hist.get_figure())})
 
 
     if save_fig:

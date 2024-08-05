@@ -134,7 +134,7 @@ def log_mean_conf_matrix(mean_conf_matrix, save_fig=False):
         conf_fig = plot_confusion_matrix(None, None, CLASS_TO_GEST, title=f'Epoch {e}', matrix=mean_conf_matrix[e,:,:], return_fig=True,
                                          cmap='PuBuGn')
         if save_fig:
-            conf_fig_file = f"ep_{wandb.config['n_epochs']}_average_conf_matrix_{wandb.config['tau_mem']}_tausyn_{wandb.config['tau_syn']}.png"
+            conf_fig_file = f"ep_{wandb.config['n_epochs']}_average_conf_matrix_taum_{wandb.config['tau_mem']}_tausyn_{wandb.config['tau_syn']}.png"
             conf_fig.savefig(os.path.join(SNN_FIG, conf_fig_file), dpi=300, bbox_inches='tight')
         wandb.log({f"avg_conf_matrix": wandb.Image(conf_fig.get_figure())})
 

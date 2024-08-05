@@ -6,11 +6,7 @@ metric:
 parameters:
   split_rep:
     value: True
-  tau_mem:
+  w_init_mean:
     distribution: uniform
-    min: 30e-3
-    max: 60e-3
-  tau_syn:
-    distribution: uniform
-    min: 5e-3
-    max: 15e-3
+    min: 0.1
+    max: 0.9
