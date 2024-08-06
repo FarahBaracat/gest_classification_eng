@@ -53,7 +53,7 @@ def train():
     dtype = torch.float
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
  
-    params_defaults = dict(n_epochs=1, # default 150
+    params_defaults = dict(n_epochs=150, # default 150
                        batch_size=16,  # default 16
                        tau_mem=54e-3,  # 50e-3,
                        tau_syn=10e-3,  # 30e-3,
@@ -66,7 +66,7 @@ def train():
                        lr_rate=0.01,
                        correct_rate=0.95,  # 150 Hz for 200 ms/ 98 Hz for 150 ms/ 97 Hz for 100 ms
                        incorrect_rate=0,
-                       bin_width=0.2,
+                       bin_width=0.1,
 
                        monitor_indices=[5, 10, 20, 35],
                        enc_vth=0.02, # default 0.05
@@ -236,7 +236,8 @@ def train():
                 metrics_w_dict["recall_val"].append(recall)
 
             if epoch % LOG_EVERY_N_EP == 0:
-                conf_fig = plot_confusion_matrix(y_true, y_pred, CLASS_TO_GEST, title=f'fold {fold_i}, epoch {epoch}', return_fig=True)
+                conf_fig = uplot.plot_confusion_matrix(y_true, y_pred, CLASS_TO_GEST, title=f'fold {fold_i}, epoch {epoch}', 
+                                                       return_fig=True)
                 wandb.log({f"confusion_matrix": wandb.Image(conf_fig.get_figure())})
 
                 # compute classification report
@@ -278,8 +279,8 @@ def train():
     wandb.log({f"weighted precision and recall": wandb.Image(fig)})
 
     # Plot metrics 
-    # Mean confusion matrix across folds
-    uplot.log_mean_conf_matrix(eng_dataset.day, mean_conf_matrix, save_fig=save_snn_figs,  cmap='PuBuGn')
+    # Mean confusion matrix across folds for the last epoch
+    uplot.plot_mean_confusion_matrix_across_folds(eng_dataset.day, mean_conf_matrix[-1,:,:], save_fig=save_snn_figs,  cmap='PuBuGn')
 
     # barplot correct predictions per class + sd for the last epoch
     uplot.plot_mean_acc_per_class(num_outputs, mean_conf_matrix[-1, :, :], std_conf_matrix[-1, :, :])
@@ -289,7 +290,8 @@ def train():
 
     # plot the learned weights and thresholds
     uplot.plot_learnt_wdist(eng_dataset.day, w_trained, w_init, save_fig=save_snn_figs)
-    uplot.plot_learnt_wheat(eng_dataset.day, w_trained, save_fig=save_snn_figs, cmap='PuBuGn')
+    uplot.plot_learnt_wheat(eng_dataset.day, w_trained, xticks_labels=list(CLASS_TO_GEST.values()),
+                            save_fig=save_snn_figs, cmap='PuBuGn')
     uplot.plot_learnt_threshold(eng_dataset.day, vth_trained, vth_init, save_fig=save_snn_figs)
 
     wandb.log({f"Classification Report": wandb.Table(dataframe=report_df)})

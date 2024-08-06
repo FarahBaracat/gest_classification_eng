@@ -45,18 +45,19 @@ def plot_learnt_wdist(day:int, w_learnt:np.ndarray, w_init:np.ndarray, save_fig=
 
 
 
-def plot_learnt_wheat(day:int, w_learnt:np.ndarray, save_fig=False, cmap='YlGnBu'):
+def plot_learnt_wheat(day:int, w_learnt:np.ndarray, xticks_labels, save_fig=False, cmap='YlGnBu'):
     fig = plt.figure(figsize=(6,4))
     ax = fig.add_subplot(111)
 
     weights_df = pd.DataFrame(w_learnt.T)
-    hmap = plot_heatmap(weights_df, ax=ax, cbar=False, cbar_label='Weight (a.u.)',
+    plot_heatmap(weights_df, ax=ax, cbar=True, cbar_label='Weight value (a.u.)',
                    yticks_label=weights_df.index,
-                    xticks_label=weights_df.columns, yticks_step=5, xticks_step=1,
-                  title="",ylabel='Input channels', 
-                  xlabel='Output neurons', cmap=cmap)  # another option for cmap is 'rocket_r'
+                    xticks_label=xticks_labels, 
+                    yticks_step=5, xticks_step=1,
+                    title="",ylabel='Input channels', 
+                    xlabel='Output neurons', cmap=cmap)  # another option for cmap is 'rocket_r'
 
-    wandb.log({f"trained_weights_hmap": wandb.Image(hmap.get_figure())})
+    wandb.log({f"trained_weights_hmap": wandb.Image(fig.get_figure())})
 
     if save_fig:
         filename = f"{day}_ep_{wandb.config['n_epochs']}_trained_weights_hmap_taum_{wandb.config['tau_mem']}_tausyn_{wandb.config['tau_syn']}_{wandb.config['bin_width']}"

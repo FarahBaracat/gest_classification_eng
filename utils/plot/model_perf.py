@@ -129,21 +129,25 @@ def plot_acc_weighted_prec_recall(results_df, plot_train=True):
     return fig
 
 
-def log_mean_conf_matrix(day, mean_conf_matrix, save_fig=False, cmap='PuBuGn'):
-    for e in range(mean_conf_matrix.shape[0]):
-        conf_fig = plot_confusion_matrix(None, None, CLASS_TO_GEST, title=f'Epoch {e}', matrix=mean_conf_matrix[e,:,:], return_fig=True,
-                                         cmap=cmap)
-        if save_fig:
-            conf_fig_file = f"{day}_ep_{wandb.config['n_epochs']}_average_conf_matrix_taum_{wandb.config['tau_mem']}_tausyn_{wandb.config['tau_syn']}_{wandb.config['bin_width']}.png"
-            conf_fig.savefig(os.path.join(SNN_FIG, conf_fig_file), dpi=300, bbox_inches='tight')
+def plot_mean_confusion_matrix_across_folds(day, mean_conf_matrix, save_fig=False, cmap='PuBuGn'):
+    # for e in range(mean_conf_matrix.shape[0]):
+    conf_fig = plot_confusion_matrix(None, None, CLASS_TO_GEST, matrix=mean_conf_matrix, return_fig=True,  cmap=cmap)
+    if save_fig:
+        conf_fig_file = f"{day}_ep_{wandb.config['n_epochs']}_average_conf_matrix_taum_{wandb.config['tau_mem']}_tausyn_{wandb.config['tau_syn']}_{wandb.config['bin_width']}.png"
+        conf_fig.savefig(os.path.join(SNN_FIG, conf_fig_file), dpi=300, bbox_inches='tight')
         wandb.log({f"avg_conf_matrix": wandb.Image(conf_fig.get_figure())})
 
 
 
 
-def plot_confusion_matrix(actual_classes: np.array, predicted_classes: np.array, class_to_gesture: dict,
+def plot_confusion_matrix(actual_classes: np.array, predicted_classes: np.array, 
+                          class_to_gesture: dict,
                           title="", matrix=None, annotate=False, save_fig =False, 
                           filename_prefix="", filename_suffix="", return_fig = False, cmap='PuRd'):
+
+    # TODO: explain this function arguments why we have actual_classes and predicted_classes and a matrix
+    # Basically, if the matrix is provided then we plot it, otherwise we compute it from the actual and predicted classes
+
     if matrix is None:
         matrix = confusion_matrix(actual_classes, predicted_classes, normalize="true")
     df_cm = pd.DataFrame(matrix, list(class_to_gesture.values()), list(class_to_gesture.values()))
