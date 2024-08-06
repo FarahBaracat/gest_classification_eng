@@ -1,6 +1,7 @@
 
 from constants import TIME_VAR
-from utils.preprocess_analog import get_single_rep_for_task
+import utils.preprocessing as pre
+from srcs.engdataset import ENGDataset
 import copy
 import numpy as np
 import pandas as pd
@@ -28,18 +29,20 @@ def organize_tasks_spikes(gest_sp_dict):
 
 
 
-def prepare_data_to_encode(sel_gest,filt_df, trig_df_post,flx_dur, ext_dur, rest_dur,n_reps):
+def prepare_data_to_encode(eng_dataset:ENGDataset, sel_gest, n_reps):
     """Selects data to encode based on the selected gestures"""
 
     cache_df = pd.DataFrame()
 
-    for  gest_tuple in sel_gest:        
-        reps_count = n_reps[gest_tuple.id]
+    for  gest_tuple in sel_gest:  
+        task_id = gest_tuple.id      
+        reps_count = n_reps[task_id]
 
         for rep_id in range(reps_count):
-            rep_df, rep_st, rep_et = get_single_rep_for_task(filt_df, trig_df_post, rep_id, gest_tuple.id, task_rep_count=n_reps)
-            rep_df_flx, rep_df_ext = segment_flx_ext(rep_df, rep_st, rep_et, flx_dur, ext_dur, rest_dur)
-
+            rep_df, rep_st, rep_et = pre.get_single_rep_for_task(eng_dataset,rep_id, task_id)
+            assert rep_df.shape[0] > 0, f"Empty repetition {rep_id} for task {task_id}"
+            rep_df_flx, rep_df_ext = pre.split_rep_to_flex_ext(rep_df, rep_st, rep_et, eng_dataset)
+            # rep_df_flx, rep_df_ext = pre.segment_flx_ext(rep_df, rep_st, rep_et, flx_dur, ext_dur, rest_dur)
 
             if gest_tuple.phase == 'flx':
                 signal = rep_df_flx

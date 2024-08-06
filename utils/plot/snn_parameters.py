@@ -6,6 +6,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import logging
+import pandas as pd
+from utils.plot.heatmaps import plot_heatmap
 
 
 
@@ -19,7 +21,7 @@ def plot_learnt_wdist(day:int, w_learnt:np.ndarray, w_init:np.ndarray, save_fig=
 
     fig = plt.figure(figsize=(5,3))
     ax = fig.add_subplot(111)
-    w_hist = ax.hist(w_learnt.flatten(), bins=100, alpha=trained_alpha, label='Trained', 
+    ax.hist(w_learnt.flatten(), bins=100, alpha=trained_alpha, label='Trained', 
             color=COLOR_DICT['dark_cyan'])
     if w_init is not None:
         ax.hist(w_init.flatten(), bins=100, alpha=init_alpha, label='Initial', 
@@ -32,11 +34,32 @@ def plot_learnt_wdist(day:int, w_learnt:np.ndarray, w_init:np.ndarray, save_fig=
     plt.legend(frameon=False)
     fig.tight_layout()
 
-    wandb.log({f"trained_init_w": wandb.Image(w_hist.get_figure())})
+    wandb.log({f"trained_init_weights_dist": wandb.Image(fig.get_figure())})
 
 
     if save_fig:
-        filename = f"{day}_ep_{n_epochs}_trained_vs_init_wdist_taum_{wandb.config['tau_mem']}_tausyn_{wandb.config['tau_syn']}"
+        filename = f"{day}_ep_{n_epochs}_trained_vs_init_wdist_taum_{wandb.config['tau_mem']}_tausyn_{wandb.config['tau_syn']}_{wandb.config['bin_width']}"
+        file_path = os.path.join(SNN_FIG, f"{filename}.png") 
+        fig.savefig(file_path, dpi=300, bbox_inches='tight')
+        logging.info(f"Saving figure to {file_path}")
+
+
+
+def plot_learnt_wheat(day:int, w_learnt:np.ndarray, save_fig=False, cmap='YlGnBu'):
+    fig = plt.figure(figsize=(6,4))
+    ax = fig.add_subplot(111)
+
+    weights_df = pd.DataFrame(w_learnt.T)
+    hmap = plot_heatmap(weights_df, ax=ax, cbar=False, cbar_label='Weight (a.u.)',
+                   yticks_label=weights_df.index,
+                    xticks_label=weights_df.columns, yticks_step=5, xticks_step=1,
+                  title="",ylabel='Input channels', 
+                  xlabel='Output neurons', cmap=cmap)  # another option for cmap is 'rocket_r'
+
+    wandb.log({f"trained_weights_hmap": wandb.Image(hmap.get_figure())})
+
+    if save_fig:
+        filename = f"{day}_ep_{wandb.config['n_epochs']}_trained_weights_hmap_taum_{wandb.config['tau_mem']}_tausyn_{wandb.config['tau_syn']}_{wandb.config['bin_width']}"
         file_path = os.path.join(SNN_FIG, f"{filename}.png") 
         fig.savefig(file_path, dpi=300, bbox_inches='tight')
         logging.info(f"Saving figure to {file_path}")
@@ -65,7 +88,7 @@ def plot_learnt_threshold(day:int, vth_learnt:np.ndarray, vth_init:np.ndarray, s
     # set y limit based on the parameter max value
     width = 0.45
     # snn_color = '#028189' #sns.color_palette(palette='Accent') [0]
-    ylim = np.max(vth_learnt) * 1.1
+    ylim = 1.6 #np.max(vth_learnt) * 1.1
     alpha_trained = 0.5
     alpha_init = 0.4
 
@@ -84,17 +107,22 @@ def plot_learnt_threshold(day:int, vth_learnt:np.ndarray, vth_init:np.ndarray, s
     ax.set_ylim(0, ylim)
     sns.despine(ax=ax, offset=0, trim=False)
 
-    plt.legend(frameon=False)
+    plt.legend(frameon=False, bbox_to_anchor=(0.18,1.1))
   
 
     # select the maximum value of learnt_tau and init_tau to use for annotation
     annot_tip = np.maximum.reduce([vth_learnt, vth_init])
-    annotate_tip_bar(ax, annot_tip, vth_learnt, COLOR_DICT['midnight_blue'], padding=0.01)
+    annotate_tip_bar(ax, annot_tip, vth_learnt, COLOR_DICT['midnight_blue'], padding=0.01*np.max(annot_tip))
 
     ax.set_ylabel(r"$U_{thr}$ (V)", labelpad=YLAB_PAD)
+    fig.tight_layout()
+
+
+    wandb.log({f"trained_init_vth": wandb.Image(fig.get_figure())})
+
 
     if save_fig:
-        filename = f"{day}_ep_{n_epochs}_trained_vs_init_threshold_taum_{wandb.config['tau_mem']}_tausyn_{wandb.config['tau_syn']}"
+        filename = f"{day}_ep_{n_epochs}_trained_vs_init_threshold_taum_{wandb.config['tau_mem']}_tausyn_{wandb.config['tau_syn']}_{wandb.config['bin_width']}"
         file_path = os.path.join(SNN_FIG, f"{filename}.png") 
         fig.savefig(file_path, dpi=300, bbox_inches='tight')
         logging.info(f"Saving figure to {file_path}")

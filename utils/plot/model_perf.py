@@ -129,12 +129,12 @@ def plot_acc_weighted_prec_recall(results_df, plot_train=True):
     return fig
 
 
-def log_mean_conf_matrix(mean_conf_matrix, save_fig=False):
+def log_mean_conf_matrix(day, mean_conf_matrix, save_fig=False, cmap='PuBuGn'):
     for e in range(mean_conf_matrix.shape[0]):
         conf_fig = plot_confusion_matrix(None, None, CLASS_TO_GEST, title=f'Epoch {e}', matrix=mean_conf_matrix[e,:,:], return_fig=True,
-                                         cmap='PuBuGn')
+                                         cmap=cmap)
         if save_fig:
-            conf_fig_file = f"ep_{wandb.config['n_epochs']}_average_conf_matrix_taum_{wandb.config['tau_mem']}_tausyn_{wandb.config['tau_syn']}.png"
+            conf_fig_file = f"{day}_ep_{wandb.config['n_epochs']}_average_conf_matrix_taum_{wandb.config['tau_mem']}_tausyn_{wandb.config['tau_syn']}_{wandb.config['bin_width']}.png"
             conf_fig.savefig(os.path.join(SNN_FIG, conf_fig_file), dpi=300, bbox_inches='tight')
         wandb.log({f"avg_conf_matrix": wandb.Image(conf_fig.get_figure())})
 
@@ -143,13 +143,18 @@ def log_mean_conf_matrix(mean_conf_matrix, save_fig=False):
 
 def plot_confusion_matrix(actual_classes: np.array, predicted_classes: np.array, class_to_gesture: dict,
                           title="", matrix=None, annotate=False, save_fig =False, 
-                          filename_prefix="", filename_suffix="", return_fig = False, cmap='flare'):
+                          filename_prefix="", filename_suffix="", return_fig = False, cmap='PuRd'):
     if matrix is None:
         matrix = confusion_matrix(actual_classes, predicted_classes, normalize="true")
     df_cm = pd.DataFrame(matrix, list(class_to_gesture.values()), list(class_to_gesture.values()))
-    fig, ax = plt.subplots(figsize=(8, 4))
-    sns_plot = sns.heatmap(df_cm, cmap=cmap, annot=True, annot_kws={"size": 8}, fmt=".2f", ax=ax, 
-                           vmin=0, vmax=1, cbar_kws={'label': 'Normalized Predictions Ratio','pad': 0.01})
+    
+
+    fig, ax = plt.subplots(figsize=(7, 4))
+    fontsize = 10
+    cbar_label = 'Normalized Predictions Ratio'
+    sns_plot = sns.heatmap(df_cm, cmap=cmap, annot=True, 
+                           annot_kws={"size": 9}, fmt=".2f", ax=ax, 
+                           vmin=0, vmax=1)
 
 
     if annotate:
@@ -159,12 +164,17 @@ def plot_confusion_matrix(actual_classes: np.array, predicted_classes: np.array,
                 t.set_text(t.get_text())
             else:
                 t.set_text("")  # if not it sets an empty text
+    # sns_plot.figure.axes[-1].yaxis.label.set_size(fontsize)
+    cbar = sns_plot.collections[0].colorbar
+    cbar.set_label(cbar_label, labelpad=5, fontsize=fontsize)
+    cbar.ax.tick_params(labelsize=fontsize)    
 
-    sns_plot.set_xticklabels(sns_plot.get_xmajorticklabels(),   rotation=0)
-    sns_plot.set_yticklabels(sns_plot.get_ymajorticklabels(), rotation=0)
-    plt.xlabel("Predicted Gesture")
-    plt.ylabel("True Gesture")
+    sns_plot.set_xticklabels(sns_plot.get_xmajorticklabels(),   rotation=0, fontsize=fontsize-1)
+    sns_plot.set_yticklabels(sns_plot.get_ymajorticklabels(), rotation=0, fontsize=fontsize-1)
+    plt.xlabel("Predicted Gesture", fontsize=fontsize, labelpad=YLAB_PAD)
+    plt.ylabel("True Gesture", fontsize = fontsize, labelpad=XLAB_PAD)
 
+    fig.tight_layout()
     # plt.show()
     if save_fig:
         conf_fig_file = f"{filename_prefix}_conf_matrix_linear_{filename_suffix}.png"

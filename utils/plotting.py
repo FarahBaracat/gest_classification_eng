@@ -12,9 +12,10 @@ import matplotlib
 import matplotlib.gridspec as gridspec
 from matplotlib.patches import Rectangle
 import matplotlib.patches as mpatches
-
+import pandas as pd
 from constants import *
 import utils.preprocess_analog as pre
+import utils.plot as uplot
 # from tueplots import figsizes
 
 plt.rcParams.update({"figure.dpi": 150})
@@ -74,8 +75,10 @@ def plot_heatmap(tensor, title, ax, cbar_label=None, vmin=None, vmax=None, cbar=
 
 
 
-def log_weights(w_tensor, is_trained=False):
-    fig = plt.figure(figsize=(10, 5))
+def log_weights(weights, is_trained=False):
+    # fig = plt.figure(figsize=(10, 5))
+    # ax = fig.add_subplot(111)
+    fig = plt.figure(figsize=(6,4))
     ax = fig.add_subplot(111)
 
     if is_trained:
@@ -85,10 +88,17 @@ def log_weights(w_tensor, is_trained=False):
         title = 'Before training'
         prefix = 'untrained'  
 
-    hmap = plot_heatmap(w_tensor.T, title, ax, cbar_label='weights', vmin=None, vmax=None, cbar=True, 
-                        ylabel='Input Neurons', 
-                        xlabel='Output Neurons')
-    hist = plot_distribution(w_tensor, title, xlabel='Weights', ylabel='Frequency', bins=100)
+    weights_df = pd.DataFrame(weights.T)
+    uplot.plot_heatmap(weights_df, ax=ax, cbar=False, cbar_label='Weight (a.u.)',
+                   yticks_label=weights_df.index,
+                   xticks_label=weights_df.columns, yticks_step=5, xticks_step=1,
+                  title="",ylabel='Input channels', 
+                  xlabel='Output neurons', cmap='YlGnBu')  
+    # hmap = plot_heatmap(w_tensor.T, title, ax, cbar_label='weights', vmin=None, vmax=None, cbar=True, 
+    #                     ylabel='Input Neurons', 
+    #                     xlabel='Output Neurons')
+
+    hist = plot_distribution(weights, title, xlabel='Weights', ylabel='Frequency', bins=100)
     
     wandb.log({f"{prefix}_w_hmap": wandb.Image(hmap.get_figure())})
     wandb.log({f"{prefix}_w_hist": wandb.Image(hist)})

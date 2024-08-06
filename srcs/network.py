@@ -65,7 +65,7 @@ class Net(nn.Module):
             nn.init.uniform_(self.fc1.weight, a=wandb.config['w_init_a'], b=wandb.config['w_init_b'])
         elif wandb.config['w_init_dist'] == 'normal':
             nn.init.normal_(self.fc1.weight, mean=wandb.config['w_init_mean'],
-                             std=0.1*wandb.config['w_init_mean'])
+                             std= wandb.config['w_init_std'])
 
         # nn.init.constant_(self.fc1.bias, 0.0)
         # Todo: add empty tensors to record spikes and membrane potentials

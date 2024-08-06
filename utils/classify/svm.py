@@ -72,7 +72,7 @@ def prepare_input_df(eng_dataset: ENGDataset, feature: str, organize_strat: str,
                               2: f"{eng_dataset.task_order[1]} Close", 3: f"{eng_dataset.task_order[1]} Open",
                               4: f"{eng_dataset.task_order[2]} Close", 5: f"{eng_dataset.task_order[2]} Open",
                               6: f"{eng_dataset.task_order[3]} Close", 7: f"{eng_dataset.task_order[3]} Open",
-                              8: f"{eng_dataset.task_order[4]} Close", 9: f"{eng_dataset.task_order[4]} Open",
+                              8: f"{eng_dataset.task_order[4]}", 9: f"FingAdd.",
                               rest_label: "Rest"}
 
             rest_feat_df[LABEL_COL] = rest_label

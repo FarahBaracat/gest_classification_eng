@@ -10,7 +10,7 @@ import logging
 
 def plot_heatmap(df, title, ax, cbar_label=None, vmin=None, vmax=None, cbar=False, ylabel='Channels', xlabel='Reps',
                  yticks_label=None,  xticks_label=None, yticks_step=5, xticks_step=5, hor_lines=None, cmap='rocket_r'):
-    # cmap = sns.color_palette("#69d", as_cmap=True)
+
     hmap = sns.heatmap(df, ax=ax, cbar_kws={ 'label': cbar_label}, 
                        cmap=cmap, vmin=vmin, vmax=vmax, cbar=cbar)  # 'shrink': 1,'aspect': 50
     fontsize = 10

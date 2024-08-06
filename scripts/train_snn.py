@@ -4,11 +4,10 @@ from srcs.engdataset import ENGDataset, Nerve
 import utils.evaluate_model as meval #forward_test_data, log_mean_conf_matrix, compute_metric
 from utils.preprocess_spikes import dense_to_sparse, split_rep_tensor_into_bins
 from utils.load_files import load_encoded_data
-from utils.plotting import log_weights, plot_vmem
-from utils.plot import plot_mean_acc_per_class, plot_mean_prec_rec_per_class, plot_acc_weighted_prec_recall, plot_confusion_matrix, log_mean_conf_matrix, plot_learnt_wdist, plot_learnt_threshold
-# import utils.plotting as uplot #log_weights, plot_vmem, plot_mean_acc_per_class, plot_mean_prec_rec_per_class, plot_acc_weighted_prec_recall
-from constants import COLOR_DICT, MAX_REP_DUR, CLASS_TO_GEST
+from utils.plotting import plot_vmem
+import utils.plot as uplot 
 
+from constants import COLOR_DICT, MAX_REP_DUR, CLASS_TO_GEST
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import StratifiedKFold
 from snntorch import functional as SF
@@ -53,8 +52,8 @@ def train():
     # torch parameters
     dtype = torch.float
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-
-    params_defaults = dict(n_epochs=150, # default 150
+ 
+    params_defaults = dict(n_epochs=1, # default 150
                        batch_size=16,  # default 16
                        tau_mem=54e-3,  # 50e-3,
                        tau_syn=10e-3,  # 30e-3,
@@ -65,20 +64,19 @@ def train():
                        k_cv=5, 
                        seed=10,
                        lr_rate=0.01,
-                       correct_rate=97,  # 150 Hz for 200 ms/ 98 Hz for 150 ms/ 97 Hz for 100 ms
+                       correct_rate=0.95,  # 150 Hz for 200 ms/ 98 Hz for 150 ms/ 97 Hz for 100 ms
                        incorrect_rate=0,
-                       monitor_indices=[5, 10, 20, 35],
+                       bin_width=0.2,
 
+                       monitor_indices=[5, 10, 20, 35],
                        enc_vth=0.02, # default 0.05
                        enc_tau_mem=0.03, #default 0.020,  
-
                        w_init_mean=0.3, # default 0.6,
-                       w_init_std=0.1,   # not used at the moment, set to 0.1 of the mean
+                       w_init_std=0.1,   
                        w_init_a=-0.1,
                        w_init_b=0.1,
                        w_init_dist='normal',#'normal',
                        split_rep=True,
-                       bin_width=0.1,
                        split_type='with_overlap',
                        overlap_perc=0.5,
                        )
@@ -102,20 +100,20 @@ def train():
     # Network Architecture
     num_outputs = len(sel_gest)
     num_inputs = eng_dataset.n_channels
-    num_steps = int(MAX_REP_DUR/wandb.config['dt'])
-
+    rep_num_steps = int(MAX_REP_DUR/wandb.config['dt'])
+    # wind_num_steps = int(wandb.config['']/wandb.config['dt'])
     print(f"Input size: {num_inputs}, Output size: {num_outputs}")
 
     # Prepare the dataset: sparse array at each dt:each sample should be (timestep, neuron_id)?
     # Temporal Dynamics: discretization of time
-    input, labels_before, num_steps = dense_to_sparse(spikes, sel_gest, num_steps,
+    input, labels_before, rep_num_steps = dense_to_sparse(spikes, sel_gest, rep_num_steps,
                                                       num_inputs, MAX_REP_DUR, wandb.config['dt'], device, dtype)
 
 
-    logging.info(f"Discritized time: {wandb.config['dt']}, Number of steps: {num_steps}")
-    print(f"\n Scaled correct rate:{wandb.config['correct_rate']/num_steps}")
-    loss_fn = SF.mse_count_loss(correct_rate=wandb.config['correct_rate']/num_steps,
-                                incorrect_rate=wandb.config['incorrect_rate']/num_steps)
+    logging.info(f"Discritized time: {wandb.config['dt']}, Number of steps: {rep_num_steps}")
+    print(f"\n Scaled correct rate:{wandb.config['correct_rate']/rep_num_steps}")
+    loss_fn = SF.mse_count_loss(correct_rate=wandb.config['correct_rate'],
+                                incorrect_rate=wandb.config['incorrect_rate'])
 
     kf = StratifiedKFold(n_splits=wandb.config['k_cv'], random_state=wandb.config.seed, shuffle=True)
 
@@ -123,8 +121,8 @@ def train():
     kf_split = kf.split(np.arange(input.size(0)), labels_before)
     if wandb.config['split_rep']:
         # num_steps can change if split_rep is True
-        input, labels, num_steps, n_split_bins = split_rep_tensor_into_bins(
-            input, labels_before, num_steps, bin_width=wandb.config['bin_width'])
+        input, labels, rep_num_steps, n_split_bins = split_rep_tensor_into_bins(
+            input, labels_before, rep_num_steps, bin_width=wandb.config['bin_width'])
     print(f"\n\nInput size after splitting into bins: {input.size()}\n")
     
     # plotting the spikes per label
@@ -166,13 +164,12 @@ def train():
         monitor_loader = DataLoader(monitor_sub, batch_size=wandb.config['batch_size'], shuffle=False)
 
         # initialize the network
-        net = Net(num_steps, num_inputs, num_outputs).to(device)
+        net = Net(rep_num_steps, num_inputs, num_outputs).to(device)
         optimizer = torch.optim.Adam(net.parameters(), lr=wandb.config['lr_rate'], betas=(0.9, 0.999))
 
         # read the weights before training
-        w_init = net.fc1.weight.detach().clone()
+        w_init = net.fc1.weight.detach().clone().numpy()
         vth_init = net.lif1.threshold.detach().clone().numpy()
-        log_weights(w_init, is_trained=False)
 
         for epoch in range(wandb.config['n_epochs']):
             e_train_loss = 0
@@ -191,7 +188,7 @@ def train():
                 logging.debug(f"check on target:{targets.size()}   spk_rec:{rec['spk1'].size()}")
                 loss_train = loss_fn(rec['spk1'], targets)
 
-                # Update weights
+                # Update weights 
                 optimizer.zero_grad()
                 loss_train.backward()
                 optimizer.step()
@@ -263,36 +260,42 @@ def train():
 
     # average the confusion matrix over all folds: returns array (n_epochs, n_classes, n_classes)
     mean_conf_matrix, std_conf_matrix = compute_mean_std_for_array(conf_matrix_fold, axis=1)
-    log_mean_conf_matrix(mean_conf_matrix, save_fig=save_snn_figs)
-
-    # barplot correct predictions per class + sd for the last epoch
     print(f"mean pred per class {mean_conf_matrix[-1,:,:]}")
     print(f"std pred per class {std_conf_matrix[-1,:,:]}")
     print("\n ----------------")
     wandb.log({'mean_conf_diagonal': np.mean(np.diag(mean_conf_matrix[-1,:,:]))})
-    plot_mean_acc_per_class(num_outputs, mean_conf_matrix[-1, :, :], std_conf_matrix[-1, :, :])
 
-    # barplot precision and recall per class + sd for the last epoch: todo pass the last epoch only
     # take the mean over k-folds
     mean_prec, std_prec = compute_mean_std_for_array(prec_matrix_fold, axis=1)
     mean_recall, std_recall = compute_mean_std_for_array(rec_matrix_fold, axis=1)
-    plot_mean_prec_rec_per_class(num_outputs, mean_prec[-1], std_prec[-1], mean_recall[-1], std_recall[-1])
-
-    # barplot weighted precision and recall + std for the last epoch
     results_df = pd.DataFrame(metrics_w_dict)
-    print(f"results_df:{results_df}\n\n")
-    fig = plot_acc_weighted_prec_recall(results_df, plot_train=False)
-    wandb.log({f"weighted precision and recall": wandb.Image(fig)})
 
     # read the weights and vth after training
-    w_trained = net.fc1.weight.detach().clone()
-    plot_learnt_wdist(eng_dataset.day, w_trained.numpy(), w_init.numpy(), save_fig=save_snn_figs)
-    log_weights(w_trained, is_trained=True)
-
+    w_trained = net.fc1.weight.detach().clone().numpy()
     vth_trained = net.lif1.threshold.detach().clone().numpy()
-    plot_learnt_threshold(eng_dataset.day, vth_trained, vth_init, save_fig=save_snn_figs)
+
+    fig = uplot.plot_acc_weighted_prec_recall(results_df, plot_train=False)
+    wandb.log({f"weighted precision and recall": wandb.Image(fig)})
+
+    # Plot metrics 
+    # Mean confusion matrix across folds
+    uplot.log_mean_conf_matrix(eng_dataset.day, mean_conf_matrix, save_fig=save_snn_figs,  cmap='PuBuGn')
+
+    # barplot correct predictions per class + sd for the last epoch
+    uplot.plot_mean_acc_per_class(num_outputs, mean_conf_matrix[-1, :, :], std_conf_matrix[-1, :, :])
+
+    # barplot precision and recall per class + sd for the last epoch
+    uplot.plot_mean_prec_rec_per_class(num_outputs, mean_prec[-1], std_prec[-1], mean_recall[-1], std_recall[-1])
+
+    # plot the learned weights and thresholds
+    uplot.plot_learnt_wdist(eng_dataset.day, w_trained, w_init, save_fig=save_snn_figs)
+    uplot.plot_learnt_wheat(eng_dataset.day, w_trained, save_fig=save_snn_figs, cmap='PuBuGn')
+    uplot.plot_learnt_threshold(eng_dataset.day, vth_trained, vth_init, save_fig=save_snn_figs)
 
     wandb.log({f"Classification Report": wandb.Table(dataframe=report_df)})
+    print(f"results_df:{results_df}\n\n")
+
+
 
 
 def compute_mean_std_for_array(metric_matrix, axis):
