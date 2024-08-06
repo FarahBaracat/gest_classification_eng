@@ -66,7 +66,7 @@ def train():
                        lr_rate=0.01,
                        correct_rate=0.95,  # 150 Hz for 200 ms/ 98 Hz for 150 ms/ 97 Hz for 100 ms
                        incorrect_rate=0,
-                       bin_width=0.1,
+                       bin_width=0.2,
 
                        monitor_indices=[5, 10, 20, 35],
                        enc_vth=0.02, # default 0.05
