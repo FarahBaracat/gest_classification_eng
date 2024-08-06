@@ -66,7 +66,7 @@ def train():
                        lr_rate=0.01,
                        correct_rate=0.95,  # 150 Hz for 200 ms/ 98 Hz for 150 ms/ 97 Hz for 100 ms
                        incorrect_rate=0,
-                       bin_width=0.1,
+                       bin_width=0.15,
 
                        monitor_indices=[5, 10, 20, 35],
                        enc_vth=0.02, # default 0.05
@@ -296,6 +296,16 @@ def train():
 
     wandb.log({f"Classification Report": wandb.Table(dataframe=report_df)})
     print(f"results_df:{results_df}\n\n")
+
+    # save results_df
+    # create directory if it does not exist
+    results_dir = 'data/snn_clf_results'
+    if not os.path.exists(results_dir):
+        os.makedirs(results_dir)
+
+    filename = f"snn_{eng_dataset.day}{eng_dataset.session}_ep_{wandb.config['n_epochs']}_seed_{wandb.config['seed']}_kcv_{wandb.config['k_cv']}_nchs_{input.size(1)}_bin_{wandb.config['bin_width']}.pkl"
+    results_df.to_pickle(os.path.join(results_dir, filename))
+
 
 
 
