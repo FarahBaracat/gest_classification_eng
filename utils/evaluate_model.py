@@ -109,3 +109,23 @@ def forward_test_data(data_loader, net, device, loss_fn, return_rec=False):
         return e_acc, e_loss, rec_tracker, y_pred, y_true
     else:
         return e_acc, e_loss, y_pred, y_true
+    
+
+
+
+def organize_mean_sd_gesture_df(mean_conf_matrix:np.ndarray, std_conf_matrix:np.ndarray):
+    """
+    Organize the mean and std of the confusion matrix for each gesture in a dataframe
+    """
+    mean_sd_gesture_df = pd.DataFrame()
+    mean_sd_gesture_df['mean_corr_pred'] = np.diag(mean_conf_matrix)
+    mean_sd_gesture_df['std_corr_pred'] = np.diag(std_conf_matrix)
+    mean_sd_gesture_df['class_labels']= list(CLASS_TO_GEST.values())
+    return mean_sd_gesture_df
+
+
+def compute_mean_std_for_array(metric_matrix, axis):
+
+    mean_metric = metric_matrix.mean(axis=axis)
+    std_metric = metric_matrix.std(axis=axis)
+    return mean_metric, std_metric

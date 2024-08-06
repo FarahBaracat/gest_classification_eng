@@ -74,7 +74,7 @@ COLOR_DICT = {'pumpkin': '#d35400', 'midnight_blue': '#2c3e50', 'pomgrenate': '#
               'wisteria': '#8e44ad', 'orange': '#f39c12', 'clouds': '#7f8c8d', 'naval': '#40739e', 'purple': '#8c7ae6',
               'viz_violet': '#9d02d7', 'viz_orange':'#fa8775', 'viz_rose': '#ea5f94',
               'viz_blue':'#361AE5', 'belize':'#2980b9', 'dark_cyan':'#028189',
-              'samaritan': '#3c6382', 'dupain':'#60a3bc'}
+              'samaritan': '#3c6382', 'dupain':'#60a3bc', 'fushia':'#CB366D'}
 GEST_COLORS = [ COLOR_DICT['viz_orange'], COLOR_DICT['green_sea'], COLOR_DICT['wisteria'] , COLOR_DICT['naval']]
 LEGEND_ALPHA = 0.8
 XLAB_PAD = 5

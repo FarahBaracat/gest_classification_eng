@@ -1,7 +1,7 @@
 from srcs.engdataset import ENGDataset
 from utils.preprocessing.extract_feat import extract_feature_for_task_rep_per_phase
 from utils.plot.model_perf import *
-from utils.evaluate_model import get_perf_results, compute_metric
+import utils.evaluate_model as meval
 from constants import *
 
 
@@ -203,10 +203,10 @@ def fit_svm(input_df, labels_map: Dict[int, str], select_class: List[int],
         logging.info(f"Train: {X_train.shape} , {y_train.shape} Test: {X_test.shape} , {y_test.shape}\n-------------------\n")
 
         # evaluate predictions
-        results_dict = get_perf_results( clf, results_dict, X_train, y_train, X_test, y_test, datasets)
+        results_dict = meval.get_perf_results( clf, results_dict, X_train, y_train, X_test, y_test, datasets)
         conf_matrix_fold[fold_i, :, :] = results_dict['conf_matrix_val'][-1]
 
-        prec, recall, _, _ = compute_metric(y_test, y_pred, 'precision_recall_fscore_support',
+        prec, recall, _, _ = meval.compute_metric(y_test, y_pred, 'precision_recall_fscore_support',
                                             selected_labels_map, avg=None)
         prec_class_fold[fold_i, :] = prec
         recall_class_fold[fold_i, :] = recall
@@ -219,6 +219,9 @@ def fit_svm(input_df, labels_map: Dict[int, str], select_class: List[int],
     # Mean and std of confusion matrix across folds
     mean_conf_matrix_test = np.mean(conf_matrix_fold, axis=0)
     std_conf_matrix_test = np.std(conf_matrix_fold, axis=0)
+
+    # Organize in a df
+    mean_sd_gesture_df = meval.organize_mean_sd_gesture_df(mean_conf_matrix_test, std_conf_matrix_test)
 
     # Mean and std of precision and recall across folds
     mean_prec_class = np.mean(prec_class_fold, axis=0)
@@ -264,6 +267,8 @@ def fit_svm(input_df, labels_map: Dict[int, str], select_class: List[int],
                                 save_fig=save_fig,
                                 filename_prefix=filename_prefix,
                                 filename_suffix=filename_suffix)
+    
+
 
     # save results_df as a png
     results_df_file = f"{filename_prefix}_acc_df_linear_{filename_suffix}.png"
@@ -271,8 +276,13 @@ def fit_svm(input_df, labels_map: Dict[int, str], select_class: List[int],
     logging.info(f"Results_df as a fig is saved to {os.path.join(CLF_FIG,  results_df_file)}")
 
     # save results_df as pkl
-    results_df_file = f"svm_{eng_dataset.day}{eng_dataset.session}_{filename_prefix}_acc_df_linear_{filename_suffix}.pkl"
+    results_df_file = f"svm_results_df_{eng_dataset.day}{eng_dataset.session}_{filename_prefix}_acc_df_linear_{filename_suffix}.pkl"
     results_df.to_pickle(os.path.join(CLF_RESULTS_DIR, results_df_file))
+
+    # save mean_sd_gesture_df as pkl
+    meansd_df_file = f"svm_meansd_df_{eng_dataset.day}{eng_dataset.session}_{filename_prefix}_acc_df_linear_{filename_suffix}.pkl"
+    mean_sd_gesture_df.to_pickle(os.path.join(CLF_RESULTS_DIR, meansd_df_file))
+    
     if return_conf_test:
         return results_df, mean_conf_matrix_test, std_conf_matrix_test
 

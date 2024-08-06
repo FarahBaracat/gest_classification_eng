@@ -66,7 +66,7 @@ def train():
                        lr_rate=0.01,
                        correct_rate=0.95,  # 150 Hz for 200 ms/ 98 Hz for 150 ms/ 97 Hz for 100 ms
                        incorrect_rate=0,
-                       bin_width=0.15,
+                       bin_width=0.1,
 
                        monitor_indices=[5, 10, 20, 35],
                        enc_vth=0.02, # default 0.05
@@ -260,15 +260,18 @@ def train():
               'avg_ep_tr_acc': epochs_acc_train[-1, :].mean().item()})
 
     # average the confusion matrix over all folds: returns array (n_epochs, n_classes, n_classes)
-    mean_conf_matrix, std_conf_matrix = compute_mean_std_for_array(conf_matrix_fold, axis=1)
+    mean_conf_matrix, std_conf_matrix = meval.compute_mean_std_for_array(conf_matrix_fold, axis=1)
+    # Combine mean and sd of diagonal of the confusion matrix of the last epoch in a datafrmae
+    mean_sd_gesture_df = meval.organize_mean_sd_gesture_df(mean_conf_matrix[-1,:,:], std_conf_matrix[-1,:,:])
+
     print(f"mean pred per class {mean_conf_matrix[-1,:,:]}")
     print(f"std pred per class {std_conf_matrix[-1,:,:]}")
     print("\n ----------------")
     wandb.log({'mean_conf_diagonal': np.mean(np.diag(mean_conf_matrix[-1,:,:]))})
 
     # take the mean over k-folds
-    mean_prec, std_prec = compute_mean_std_for_array(prec_matrix_fold, axis=1)
-    mean_recall, std_recall = compute_mean_std_for_array(rec_matrix_fold, axis=1)
+    mean_prec, std_prec = meval.compute_mean_std_for_array(prec_matrix_fold, axis=1)
+    mean_recall, std_recall = meval.compute_mean_std_for_array(rec_matrix_fold, axis=1)
     results_df = pd.DataFrame(metrics_w_dict)
 
     # read the weights and vth after training
@@ -303,18 +306,28 @@ def train():
     if not os.path.exists(results_dir):
         os.makedirs(results_dir)
 
-    filename = f"snn_{eng_dataset.day}{eng_dataset.session}_ep_{wandb.config['n_epochs']}_seed_{wandb.config['seed']}_kcv_{wandb.config['k_cv']}_nchs_{input.size(1)}_bin_{wandb.config['bin_width']}.pkl"
+    filename = f"snn_results_df_{eng_dataset.day}{eng_dataset.session}_ep_{wandb.config['n_epochs']}_seed_{wandb.config['seed']}_kcv_{wandb.config['k_cv']}_nchs_{input.size(-1)}_bin_{wandb.config['bin_width']}.pkl"
     results_df.to_pickle(os.path.join(results_dir, filename))
 
+    filename = f"snn_meansd_df_{eng_dataset.day}{eng_dataset.session}_ep_{wandb.config['n_epochs']}_seed_{wandb.config['seed']}_kcv_{wandb.config['k_cv']}_nchs_{input.size(-1)}_bin_{wandb.config['bin_width']}.pkl"
+    mean_sd_gesture_df.to_pickle(os.path.join(results_dir, filename))
 
 
+# def organize_mean_sd_gesture_df(mean_conf_matrix:np.ndarray, std_conf_matrix:np.ndarray):
+#     """
+#     Organize the mean and std of the confusion matrix for each gesture in a dataframe
+#     """
+#     mean_sd_gesture_df = pd.DataFrame()
+#     mean_sd_gesture['mean_corr_pred'] = np.diag(mean_conf_matrix[-1,:,:])
+#     mean_sd_gesture['std_corr_pred'] = np.diag(std_conf_matrix[-1,:,:])
+#     mean_sd_gesture['class_labels']= list(CLASS_TO_GEST.values())
+#     return mean_sd_gesture_df
 
+# def compute_mean_std_for_array(metric_matrix, axis):
 
-def compute_mean_std_for_array(metric_matrix, axis):
-
-    mean_metric = metric_matrix.mean(axis=axis)
-    std_metric = metric_matrix.std(axis=axis)
-    return mean_metric, std_metric
+#     mean_metric = metric_matrix.mean(axis=axis)
+#     std_metric = metric_matrix.std(axis=axis)
+#     return mean_metric, std_metric
 
 
 def map_new_ids(train_ind, test_ind, n_split_bins):
